@@ -1,0 +1,38 @@
+name: Test
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: 'Rev to check'
+        type: string
+        required: true
+
+jobs:
+  build:
+    name: 'Build'
+    strategy:
+      matrix:
+        container: ['gcc:9.5.0-buster', 'gcc:12.2.0-bullseye']
+    runs-on: 'ubuntu-latest'
+    container: ${{ matrix.container }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v3
+      - name: 'Build and run'
+        run: |
+          g++ -g main.cpp
+          ./a.out
+      - name: 'Check syms'
+        run: |
+          objdump -T ./a.out | grep GLIBC | sed 's/.*GLIBC_\([.0-9]*\).*/\1/g' | sort -Vu
+      - name: 'Make artifact name'
+        run: |
+          echo "ARTIFACT_NAME=helloworld${CONTAINER_NAME/:/-}" >> "$GITHUB_ENV"
+        env:
+          CONTAINER_NAME: ${{ matrix.container }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ./a.out
